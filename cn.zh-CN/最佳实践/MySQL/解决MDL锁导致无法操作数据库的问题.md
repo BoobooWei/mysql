@@ -38,20 +38,20 @@ MySQL 5.5版本开始，引入了MDL锁，用于解决或者保证DDL操作与DM
 
         ```
         select concat('kill ',i.trx_mysql_thread_id,';') from information_schema.innodb_trx i,
-          (select 
-                 id, time
+  (select 
+         id, time
+     from
+         information_schema.processlist
+     where
+         time = (select 
+                 max(time)
              from
                  information_schema.processlist
              where
-                 time = (select 
-                         max(time)
-                     from
-                         information_schema.processlist
-                     where
-                         state = 'Waiting for table metadata lock'
-                             and substring(info, 1, 5) in ('alter' , 'optim', 'repai', 'lock ', 'drop ', 'creat'))) p
-          where timestampdiff(second, i.trx_started, now()) > p.time
-          and i.trx_mysql_thread_id  not in (connection_id(),p.id);
+                 state = 'Waiting for table metadata lock'
+                     and info regexp 'alter|optim|repai|lock|drop|creat')) p
+  where timestampdiff(second, i.trx_started, now()) > p.time
+  and i.trx_mysql_thread_id  not in (connection_id(),p.id);
         ```
 
 4.  在命令行输入kill**Id数字**，例如 kill 267，即可中断会话，解除MDL锁。
